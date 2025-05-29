@@ -11,7 +11,7 @@ const fileRouter = Router();
 
 fileRouter.post("/files", verifyJWT, uploadFile);
 fileRouter.get("/files", verifyJWT, getFiles);
-fileRouter.get("/files/:fileId", getFileById);
+fileRouter.get("/files/:fileId", verifyJWT, getFileById);
 fileRouter.delete("/files/:fileId", deleteFile);
 
 export default fileRouter;
