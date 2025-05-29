@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import path from "path";
 import { db } from "../db";
 import { Prisma } from "@prisma/client";
 
@@ -114,3 +115,123 @@ export const deleteFile = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Failed to delete file", error });
   }
 };
+
+export const getWeeklyReports = async (req: Request, res: Response) => {
+  const userId = req.userId;
+
+  try {
+    // Get the user to find the vendorId
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { vendorId: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    const files = await db.file.findMany({
+      where: {
+        vendorId: user.vendorId,
+        sharedAt: {
+          gte: oneWeekAgo,
+        },
+      },
+      orderBy: {
+        sharedAt: "desc",
+      },
+      include: {
+        sharedBy: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+        vendor: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json(files);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch weekly reports", error: err });
+  }
+};
+
+export const getReportFileTypeGraphData = async (req: Request, res: Response) => {
+  const userId = req.userId;
+
+  try {
+    // Get the user to find vendorId
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { vendorId: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Fetch all files for the vendor
+    const files = await db.file.findMany({
+      where: {
+        vendorId: user.vendorId,
+      },
+      select: {
+        name: true,
+      },
+    });
+
+    const getCategory = (filename: string): string => {
+      const ext = path.extname(filename).toLowerCase().replace(".", ""); // e.g. 'pdf'
+
+      switch (ext) {
+        case "pdf":
+          return "PDF";
+        case "doc":
+        case "docx":
+          return "Word";
+        case "xls":
+        case "xlsx":
+          return "Excel";
+        case "ppt":
+        case "pptx":
+          return "PowerPoint";
+        case "csv":
+          return "CSV";
+        default:
+          return "Other";
+      }
+    };
+
+    // Count by category
+    const categoryCounts: Record<string, number> = {};
+
+    for (const file of files) {
+      const category = getCategory(file.name);
+      categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+    }
+
+    const total = Object.values(categoryCounts).reduce((acc, val) => acc + val, 0) || 1;
+
+    const result: Record<string, number> = {};
+    for (const [category, count] of Object.entries(categoryCounts)) {
+      result[category] = Math.round((count / total) * 100);
+    }
+
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Failed to fetch report file type graph data", error: err });
+  }
+};
+
