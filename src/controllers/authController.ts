@@ -1,0 +1,218 @@
+import { Request, Response } from "express";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import { db } from "../db";
+
+interface Token {
+  userId: string;
+}
+
+export type Role =  "ADMIN" | "VENDOR" | "SUPER_USER";
+
+export const addUser = async (req: Request, res: Response) => {
+  const { fullName, email, password, vendorId } = req.body;
+
+  if (!fullName) return res.status(400).json({ message: "Full name is required" });
+  if (!email) return res.status(400).json({ message: "Email is required" });
+  if (!password) return res.status(400).json({ message: "Password is required" });
+  if (!vendorId) return res.status(400).json({ message: "VendorId is required" });
+  const role: Role = req.body.role || 'VENDOR'
+  if (!role) return res.status(400).json({ message: "Role is required" });
+
+  try {
+    const existingUser = await db.user.findFirst({ where: { email } });
+    if (existingUser) return res.status(403).json({ message: "Email already in use" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await db.user.create({
+      data: {
+        fullName,
+        email,
+        password: hashedPassword,
+        role,
+        vendorId
+      },
+    });
+
+    const accessToken = jwt.sign(
+      { userId: user.id },
+      process.env.ACCESS_TOKEN_SECRET as string,
+      { expiresIn: "24h" }
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user.id },
+      process.env.REFRESH_TOKEN_SECRET as string,
+      { expiresIn: "7d" }
+    );
+
+    await db.user.update({
+      where: { id: user.id },
+      data: { refresh_token: refreshToken },
+    });
+
+    res.cookie("jwt", refreshToken, {
+      httpOnly: true,
+      sameSite: "none",
+      secure: true,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.status(201).json({
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      accessToken,
+    });
+    
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to register user" });
+  }
+};
+
+export const loginUser = async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+  if (!email || !password)
+    return res.status(400).json({ message: "Email and password are required" });
+
+  try {
+    const user = await db.user.findFirst({ 
+      where: { email }, 
+      include: {
+      vendor: {
+        select: { id: true, name: true,}
+      },
+    }, 
+  });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ message: "Incorrect password" });
+
+    const accessToken = jwt.sign(
+      { userId: user.id },
+      process.env.ACCESS_TOKEN_SECRET as string,
+      { expiresIn: "15m" }
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user.id },
+      process.env.REFRESH_TOKEN_SECRET as string,
+      { expiresIn: "7d" }
+    );
+
+    await db.user.update({
+      where: { id: user.id },
+      data: { refresh_token: refreshToken },
+    });
+
+    res.cookie("jwt", refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.status(200).json({
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      vendor: user.vendor.name,
+      vendorId: user.vendor.id,
+      accessToken,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Login failed" });
+  }
+};
+
+export const handleRefreshToken = async (req: Request, res: Response) => {
+  const cookies = req.cookies;
+  if (!cookies?.jwt) return res.status(401).json({ message: "Unauthorized" });
+
+  const refreshToken = cookies.jwt;
+  try {
+    const user = await db.user.findFirst({ where: { refresh_token: refreshToken } });
+    if (!user) return res.status(403).json({ message: "Forbidden" });
+
+    jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET as string, (err: jwt.VerifyErrors | null, decoded: string | jwt.JwtPayload | undefined) => {
+      if (err || (decoded as Token).userId !== user.id)
+        return res.status(403).json({ message: "Invalid token" });
+
+      const accessToken = jwt.sign(
+        { userId: user.id },
+        process.env.ACCESS_TOKEN_SECRET as string,
+        { expiresIn: "15m" }
+      );
+      res.status(200).json({ accessToken });
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Token refresh failed" });
+  }
+};
+
+export const handlePersistentLogin = async (req: Request, res: Response) => {
+  const cookies = req.cookies;
+  if (!cookies?.jwt) return res.status(401).json({ message: "Unauthorized" });
+
+  const refreshToken = cookies.jwt;
+  try {
+    const user = await db.user.findFirst({ where: { refresh_token: refreshToken } });
+    if (!user) return res.status(403).json({ message: "Forbidden" });
+
+    jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET as string, (err: jwt.VerifyErrors | null, decoded: string | jwt.JwtPayload | undefined) => {
+      if (err || (decoded as Token).userId !== user.id)
+        return res.status(403).json({ message: "Invalid token" });
+
+      const accessToken = jwt.sign(
+        { userId: user.id },
+        process.env.ACCESS_TOKEN_SECRET as string,
+        { expiresIn: "15m" }
+      );
+
+      res.status(200).json({
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        accessToken,
+      });
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Persistent login failed" });
+  }
+};
+
+export const handleLogout = async (req: Request, res: Response) => {
+  const cookies = req.cookies;
+  if (!cookies?.jwt) return res.sendStatus(204); // No content
+
+  const refreshToken = cookies.jwt;
+  try {
+    const user = await db.user.findFirst({ where: { refresh_token: refreshToken } });
+    if (user) {
+      await db.user.update({
+        where: { id: user.id },
+        data: { refresh_token: "" },
+      });
+    }
+
+    res.clearCookie("jwt", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+    });
+
+    res.sendStatus(204);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Logout failed" });
+  }
+};

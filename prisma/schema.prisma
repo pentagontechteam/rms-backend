@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  VENDOR
+  SUPER_USER
+}
+
+model User {
+  id              String   @id @default(cuid())
+  fullName        String
+  email           String   @unique
+  password        String
+  role            Role
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt()
+
+  vendor          Vendor   @relation(fields: [vendorId], references: [id])
+  vendorId        String
+
+  files           File[]
+
+  refresh_token   String             @default("")
+}
+
+model Vendor {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt()
+
+  users       User[]
+  files       File[]
+}
+
+model File {
+  id         String   @id @default(cuid())
+  name       String
+  type       String   // e.g., pdf, docx, xlsx, etc.
+  size       Int      // size in bytes
+  url        String   // S3 URL
+  path       String   // optional: internal S3 path
+  sharedAt DateTime @default(now())
+
+  sharedBy User     @relation(fields: [sharedById], references: [id])
+  sharedById String
+
+  vendor     Vendor   @relation(fields: [vendorId], references: [id])
+  vendorId   String
+}
