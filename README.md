@@ -1,21 +1,8 @@
-# 🚀 Spaces — Backend API for Real-Time Collaboration
+# 🚀 AATC-RMS — AN INCIDENT AND REPORT MANAGEMENT SYSTEM
 
-This is the **backend API** for the Spaces platform — a real-time, role-based collaboration tool built for student-supervisor project interaction at Teesside University.
+This is the **backend API** for the AATC-RMS system — a real-time, role-based file sharing system built for supervisor-vendor incident report submission and management at AATC Abuja.
 
-> It supports user authentication, role management, group creation and task management.
-
----
-
-## 🌐 Frontend Demo
-
-🧪 [Try the frontend here](https://spaces-frontend-lovat.vercel.app)
-
-### 🔐 Demo Login
-
-Use the following credentials to test without signing up:
-
-- **Email:** `japahubs@gmail.com`  
-- **Password:** `Qwerty78`
+> It supports user authentication, role management, vendor creation and report management.
 
 ---
 
@@ -33,7 +20,7 @@ Backend stack:
 ## ✨ Key Features
 
 - 🔐 User authentication with refresh tokens
-- 🎓 Role-based accounts: **Student** or **Supervisor**
+- 🎓 Role-based accounts: **Vendor** or **Supervisor**
 - 📧 OTP email verification
 - 🧱 PostgreSQL (Neon) for database
 
@@ -44,8 +31,8 @@ Backend stack:
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/prosper20/spaces-backend.git
-cd spaces-backend
+git clone https://github.com/pentagontechteam/rms-backend.git
+cd rms-backend
 ```
 
 ### 2. Install dependencies
@@ -60,7 +47,7 @@ In the root directory, create a `.env` file with the following variables (values
 
 ```env
 # Port
-PORT=5000
+PORT=4000
 
 # PostgreSQL / Prisma
 DATABASE_URL=
@@ -68,21 +55,16 @@ POSTGRES_USER=
 POSTGRES_DB=
 POSTGRES_PASSWORD=
 
-# Redis
-REDIS_PORT=
-REDIS_HOST=
-REDIS_URL=
-REDIS_PASS=
+# AWS
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_BUCKET_NAME=
+AWS_REGION=
 
 # JWT Tokens
 ACCESS_TOKEN_SECRET=
 REFRESH_TOKEN_SECRET=
 
-# SMTP Email (for OTP)
-SMTP_HOST=
-SMTP_PORT=
-SMTP_USER=
-SMTP_PASSWORD=
 ```
 
 > These values are required for the server to run correctly. Contact the maintainer if you need access to a `.env` example.
@@ -103,7 +85,7 @@ npm run dev
 ```
 
 > Server runs at:  
-> ⚙️ `http://localhost:5000`
+> ⚙️ `http://localhost:4000`
 
 ---
 
