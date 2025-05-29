@@ -5,7 +5,9 @@ import {
   handleRefreshToken,
   loginUser,
   addUser,
+  resetPassword,
 } from "../controllers/authController";
+import { verifyJWT } from "../middleware/verifyJWT";
 
 const authRouter = Router();
 
@@ -15,5 +17,6 @@ authRouter.post("/auth/login", loginUser);
 authRouter.get("/auth/refresh", handleRefreshToken);
 authRouter.get("/auth/login/persist", handlePersistentLogin);
 authRouter.post("/auth/logout", handleLogout);
+authRouter.post("/auth/reset", verifyJWT, resetPassword);
 
 export default authRouter;
