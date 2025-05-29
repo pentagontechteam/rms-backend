@@ -2,11 +2,12 @@ import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { db } from "../db";
+import { Prisma } from "@prisma/client";
 
 interface Token {
   userId: string;
 }
-
+type User = Prisma.UserGetPayload<{}>
 export type Role =  "ADMIN" | "VENDOR" | "SUPER_USER";
 
 export const addUser = async (req: Request, res: Response) => {
@@ -121,6 +122,7 @@ export const loginUser = async (req: Request, res: Response) => {
       fullName: user.fullName,
       email: user.email,
       role: user.role,
+      isProfileComplete: user.profile_complete,
       vendor: user.vendor.name,
       vendorId: user.vendor.id,
       accessToken,
@@ -214,5 +216,38 @@ export const handleLogout = async (req: Request, res: Response) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Logout failed" });
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+  const userId = req.userId;
+
+  let user: User;
+
+
+  if (!email || !password)
+    return res.status(400).json({ message: "Email and new password are required" });
+
+  try {
+    const user = await db.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await db.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword, profile_complete: true },
+    });
+
+    res.status(200).json({ message: "Password reset successful" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Password reset failed" });
   }
 };
