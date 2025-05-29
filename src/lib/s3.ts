@@ -41,14 +41,14 @@ export class AWSS3Uploader {
     const fileExt = originalFilename.split(".").pop()?.toLowerCase() || "bin";
     const now = new Date();
       
-    // format: YYYY-MM-DD_HH-MM-SS (e.g., 2023-08-15_14-30-22)
-    const timestamp = now.toISOString()
-      .replace(/T/, '_')
-      .replace(/\..+/, '')
-      .replace(/:/g, '-');
+    const nameWithoutExt = originalFilename.replace(/\.[^/.]+$/, '');
+    
+    const cleanedName = nameWithoutExt
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9_-]/g, '');
 
     const randomString = this.generateRandomAlphaNumeric(4);
-    const safeName = `${randomString}-${timestamp}.${fileExt}`;
+    const safeName = `${cleanedName}_${randomString}.${fileExt}`;
     const key = `${vendor}/${safeName}`;
     const contentType = this.getMimeType(fileExt);
 
