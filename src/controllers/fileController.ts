@@ -235,3 +235,62 @@ export const getReportFileTypeGraphData = async (req: Request, res: Response) =>
   }
 };
 
+
+
+export const getDailyReports = async (req: Request, res: Response) => {
+  const userId = req.userId;
+
+  try {
+    // Get the user to find their vendor ID
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { vendorId: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Get today's date at midnight
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    // Fetch today's shared files
+    const files = await db.file.findMany({
+      where: {
+        vendorId: user.vendorId,
+        sharedAt: {
+          gte: todayStart,
+        },
+      },
+      orderBy: {
+        sharedAt: "desc",
+      },
+      include: {
+        sharedBy: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+        vendor: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json(files);
+  } catch (err) {
+    console.error("Get Daily Reports Error:", err);
+    res.status(500).json({
+      message: "Failed to fetch daily reports",
+      error: err,
+    });
+  }
+};
+
+

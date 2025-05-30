@@ -6,6 +6,7 @@ import {
   deleteFile,
   getWeeklyReports,
   getReportFileTypeGraphData,
+  getDailyReports,
 } from "../controllers/fileController";
 import { verifyJWT } from "../middleware/verifyJWT";
 
@@ -17,6 +18,7 @@ fileRouter.get("/files/:fileId", verifyJWT, getFileById);
 fileRouter.delete("/files/:fileId", deleteFile);
 
 fileRouter.get("/reports/weekly", verifyJWT, getWeeklyReports);
+fileRouter.get("/reports/daily", verifyJWT, getDailyReports);
 fileRouter.get("/reports/file-type-graph", verifyJWT, getReportFileTypeGraphData);
 
 export default fileRouter;
