@@ -225,12 +225,11 @@ export const resetPassword = async (req: Request, res: Response) => {
 
   let user: User;
 
-
   if (!email || !password)
     return res.status(400).json({ message: "Email and new password are required" });
 
   try {
-    const user = await db.user.findUnique({
+    user = await db.user.findUnique({
       where: { id: userId },
     });
 
